@@ -1,34 +1,48 @@
-NAME        = libft_malloc
+CC = cc
+CFLAGS = -Wall -Wextra -Werror -fPIC -Iincludes -Ilibft
+LDFLAGS = -shared
 
-ifeq ($(HOSTTYPE),)
+LIBFT_DIR = libft
+
+NAME = libft_malloc
 HOSTTYPE := $(shell uname -m)_$(shell uname -s)
-endif
+LIBNAME = $(NAME)_$(HOSTTYPE).so
+LINKNAME = $(NAME).so
+TESTNAME = test
 
-LIBNAME     = $(NAME)_$(HOSTTYPE).so
-LINKNAME    = $(NAME).so
+SRCS = $(wildcard srcs/*.c)
+OBJDIR = objs
+OBJS = $(patsubst srcs/%.c,$(OBJDIR)/%.o,$(SRCS))
+LIBFT_LIB = $(LIBFT_DIR)/libft.a
 
-CC          = cc
-CFLAGS      = -Wall -Wextra -Werror -fPIC
+all: $(LIBNAME) $(LINKNAME)
 
-SRC         = src/malloc.c
-OBJ         = $(SRC:.c=.o)
+$(LIBFT_LIB):
+	$(MAKE) -C $(LIBFT_DIR)
 
-all: $(LIBNAME)
+$(OBJDIR):
+	mkdir -p $@
 
-$(LIBNAME): $(OBJ)
-	$(CC) -shared $(OBJ) -o $(LIBNAME)
-	ln -sf $(LIBNAME) $(LINKNAME)
-
-%.o: %.c
+$(OBJDIR)/%.o: srcs/%.c | $(OBJDIR)
 	$(CC) $(CFLAGS) -c $< -o $@
 
+$(LIBNAME): $(OBJS) $(LIBFT_LIB)
+	$(CC) $(LDFLAGS) $(OBJS) $(LIBFT_LIB) -o $(LIBNAME)
+
+$(LINKNAME): $(LIBNAME)
+	ln -sf $(LIBNAME) $(LINKNAME)
+
+test: $(LIBNAME) test.c
+	$(CC) test.c -L. -Wl,-rpath,. -lft_malloc -o $(TESTNAME)
+
 clean:
-	rm -f $(OBJ)
+	rm -rf $(OBJDIR)
+	$(MAKE) -C $(LIBFT_DIR) clean
 
 fclean: clean
-	rm -f $(LIBNAME)
-	rm -f $(LINKNAME)
+	rm -f $(LIBNAME) $(LINKNAME) $(TESTNAME)
+	$(MAKE) -C $(LIBFT_DIR) fclean
 
-re: fclean all
+re: fclean all test
 
-.PHONY: all clean fclean re
+.PHONY: all clean fclean re test

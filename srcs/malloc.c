@@ -1,4 +1,6 @@
-#include "../includes/malloc.h"
+#include "malloc.h"
+
+t_heap	g_heap = {0};
 
 t_page*	allocate_new_page(t_page* next, size_t page_size)
 {
@@ -14,37 +16,41 @@ t_page*	allocate_new_page(t_page* next, size_t page_size)
 		0
 	);
 
-	if (page == MAP_FAILED) return NULL;
+	if (page == MAP_FAILED)
+	{
+		return NULL;
+	}
 
 	page->size = page_size;
 	page->next = next;
 
 	block = (t_block *)(page + 1);
-
 	block->size = page_size - sizeof(t_page);
 	block->free = 1;
 
-	return (page);
+	return page;
 }
 
 void*	enough_space(t_block* block, size_t size)
 {
-	block->size = block->size - size;
+	if (block->size > size)
+	{
+		t_block*	newBlock;
+	
+		newBlock = (t_block *)((char *)block + size);
+		newBlock->size = block->size - size;
+		newBlock->free = 1;
+	}
 
-	t_block	*newBlock;
+	block->size = size;
+	block->free = 0;
 
-	newBlock = (t_block *)((char *)block + block->size);
-
-	newBlock->size = size;
-	newBlock->free = 0;
-
-	return (char *)newBlock + sizeof(t_block);
+	return (char *)block + sizeof(t_block); // Returns the memory shifted by sizeof(t_block) to make the content directly accesible
 }
 
 void*	alloc_in_page(t_page* page, size_t size)
 {
 	t_block*	block;
-	t_block*	next_block;
 	char*		end;
 
 	block	= (t_block *)(page + 1);
@@ -52,29 +58,28 @@ void*	alloc_in_page(t_page* page, size_t size)
 
 	while ((char *)block < end)
 	{
-		if (block->free && block->size >= size) return enough_space(block, size);
-
-		next_block = (t_block *)((char *)block + block->size);
-
-		if (block->free && next_block->free) // 2 free blocks next to each other??? lets merge them
+		if (block->free && block->size >= size)
 		{
-			block->size += next_block->size;
-			continue;
+			return enough_space(block, size);
 		}
 
-		block = next_block;
+		block = (t_block *)((char *)block + block->size); // Jump to next_block
 	}
 
 	return NULL;
 }
 
-void*	allocate(t_page** zone, size_t size, size_t zoneSize)
+void*	alloc_in_zone(t_page** zone, size_t size, size_t zoneSize)
 {
-	t_page*	page = *zone;
+	t_page*	page;
+	void*	ptr;
+
+	page	= *zone;
+	ptr		= NULL;
 	
 	while (page)
 	{
-		void*	ptr = alloc_in_page(page, size); // Returns NULL if there isnt enough space available
+		ptr = alloc_in_page(page, size); // Returns NULL if there isnt enough space available
 
 		if (ptr) return ptr;
 	
@@ -86,18 +91,23 @@ void*	allocate(t_page** zone, size_t size, size_t zoneSize)
 	return alloc_in_page(*zone, size);
 }
 
-size_t align16(size_t size)
+size_t	align16(size_t size)
 {
 	return (size + 15) & ~15;
 }
 
 void*	malloc(size_t size)
 {
-	t_page**	zones[] = {
+	if (size <= 0 || size > __INT_MAX__)
+		return NULL;
+
+	static t_page**	zones[] = {
 		&g_heap.tiny,
 		&g_heap.small,
 		&g_heap.large
 	};
+
+	size = align16(sizeof(t_block) + size);
 
 	size_t	sizes[] = {
 		TINY_ZONE_SIZE,
@@ -105,28 +115,8 @@ void*	malloc(size_t size)
 		LARGE_ZONE_SIZE(size)
 	};
 
-	size = sizeof(t_block) + align16(size);
+	int	index = (size > TINY) + (size > SMALL);
 
-	char index = (size > TINY) + (size > SMALL);
-
-	return	allocate(zones[index], size, sizes[index]);
+	return alloc_in_zone(zones[index], size, sizes[index]);
 }
 
-void	free(void* ptr)
-{
-	t_block* block;
-
-	block = (t_block*)((char*)ptr - sizeof(t_block));
-
-	block->free = 1;
-}
-
-//void*	realloc(void* ptr, size_t size)
-//{
-//	
-//}
-//
-//void*	calloc(size_t nmemb, size_t size)
-//{
-//	
-//}
