@@ -2,7 +2,7 @@
 
 t_heap	g_heap = {0};
 
-t_page*	allocate_new_page(t_page* next, size_t page_size)
+static t_page*	allocate_new_page(t_page* next, size_t page_size)
 {
 	t_page		*page;
 	t_block		*block;
@@ -31,7 +31,7 @@ t_page*	allocate_new_page(t_page* next, size_t page_size)
 	return page;
 }
 
-void*	enough_space(t_block* block, size_t size)
+static void*	enough_space(t_block* block, size_t size)
 {
 	if (block->size > size)
 	{
@@ -48,7 +48,7 @@ void*	enough_space(t_block* block, size_t size)
 	return (char *)block + sizeof(t_block); // Returns the memory shifted by sizeof(t_block) to make the content directly accesible
 }
 
-void*	alloc_in_page(t_page* page, size_t size)
+static void*	alloc_in_page(t_page* page, size_t size)
 {
 	t_block*	block;
 	char*		end;
@@ -69,7 +69,7 @@ void*	alloc_in_page(t_page* page, size_t size)
 	return NULL;
 }
 
-void*	alloc_in_zone(t_page** zone, size_t size, size_t zoneSize)
+static void*	alloc_in_zone(t_page** zone, size_t size, size_t zoneSize)
 {
 	t_page*	page;
 	void*	ptr;
@@ -91,7 +91,7 @@ void*	alloc_in_zone(t_page** zone, size_t size, size_t zoneSize)
 	return alloc_in_page(*zone, size);
 }
 
-size_t	align16(size_t size)
+static size_t	align16(size_t size)
 {
 	return (size + 15) & ~15;
 }

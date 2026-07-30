@@ -1,6 +1,6 @@
 #include "malloc.h"
 
-void	printPage(t_page* page)
+static void	printPage(t_page* page)
 {
 	t_block*	block;
 	char*		end;
@@ -19,7 +19,7 @@ void	printPage(t_page* page)
 	}
 }
 
-void	printZone(t_page* zone)
+static void	printZone(t_page* zone)
 {
 	t_page*	page = zone;
 

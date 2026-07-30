@@ -1,105 +1,57 @@
 #include "malloc.h"
 
-int	free_block(t_block *prev, t_block *curr, char *end) // Defragmentation happens here
-{
-	if (curr->free)
-	{
-		ft_printf("[Warning]: Double free\n");
-		return 1;
-	}
-
-	curr->free = 1;
-
-	t_block *next = (t_block *)((char *)curr + curr->size);
-
-	if ((char *)next < end && next->free)
-		curr->size += next->size;
-
-	if (prev && prev->free)
-		prev->size += curr->size;
-
-	return 1;
-}
-
-int	search_in_page_for_block(t_page* page, t_block* target_block)
+void	free_block(t_search* data) // Defragmentation happens here
 {
 	t_block*	prev;
-	t_block*	curr;
+	t_block*	block;
 	char*		end;
 
-	prev	= NULL;
-	curr	= (t_block *)(page + 1);
-	end		= (char *)page + page->size;
+	prev	= data->prev_block;
+	block	= data->block;
+	end		= (char *)data->page + data->page->size;
 
-	while ((char *)curr < end)
-	{
-		if (curr == target_block)
-			return free_block(prev, curr, end);
+	if (block->free)
+		return error_msg("[Warning]: Double free detected\n");
 
-		prev = curr;
-		curr = (t_block *)((char *)curr + curr->size);
-	}
+	block->free = 1;
 
-	return 0;
+	t_block *next = (t_block *)((char *)block + block->size);
+
+	if ((char *)next < end && next->free)
+		block->size += next->size;
+
+	if (prev && prev->free)
+		prev->size += block->size;
 }
 
-int	free_page(t_page *prev, t_page *curr, t_page** zone)
+void	free_page(t_search* data)
 {
+	t_page*		prev;
+	t_page*		page;
 	t_block*	first_block;
 	
-	first_block	= (t_block *)(curr + 1);
+	prev		= data->prev_page;
+	page		= data->page;
+	first_block	= (t_block *)(page + 1);
 
-	if (curr->size == first_block->size + sizeof(t_block) && first_block->free)
+	if (page->size == first_block->size + sizeof(t_block) && first_block->free)
 	{
 		if (prev)
-			prev->next = curr->next;
+			prev->next = page->next;
 		else
-			*zone = curr->next;
+			*data->zone = page->next;
 
-		munmap(curr, curr->size);
+		munmap(page, page->size);
 	}
-
-	return 1;
-}
-
-int	search_in_zone_for_page(t_page** zone, t_block* block)
-{
-	t_page*	prev;
-	t_page*	curr;
-
-	prev	= NULL;
-	curr	= *zone;
-
-	while (curr)
-	{
-		if (search_in_page_for_block(curr, block))
-			return free_page(prev, curr, zone);
-
-		prev = curr;
-		curr = curr->next;
-	}
-
-	return 0;
 }
 
 void	free(void *ptr)
 {
-	if (!ptr) return;
+	t_search data = {0};
 
-	t_block*	block = (t_block *)((char *)ptr - sizeof(t_block));
-	
-	t_page**	zones[] = {
-		&g_heap.tiny,
-		&g_heap.small,
-		&g_heap.large,
-		NULL
-	};
+	if (!search_block(&data, ptr))
+		return error_msg("[Warning]: Memory address not found\n");
 
-	for (size_t i = 0; zones[i]; i++)
-	{
-		if (search_in_zone_for_page(zones[i], block))
-			return ;
-	}
-
-	ft_printf("[Warning]: Not my memory\n");
+	free_block(&data);
+	free_page(&data);
 }
