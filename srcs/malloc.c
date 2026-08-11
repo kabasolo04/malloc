@@ -1,6 +1,14 @@
 #include "malloc.h"
 
-t_heap	g_heap = {0};
+t_heap g_heap =
+{
+	.tiny = NULL,
+	.small = NULL,
+	.large = NULL,
+	.tiny_mutex  = PTHREAD_MUTEX_INITIALIZER,
+	.small_mutex = PTHREAD_MUTEX_INITIALIZER,
+	.large_mutex = PTHREAD_MUTEX_INITIALIZER,
+};
 
 static t_page*	allocate_new_page(t_page* next, size_t page_size)
 {
@@ -17,9 +25,7 @@ static t_page*	allocate_new_page(t_page* next, size_t page_size)
 	);
 
 	if (page == MAP_FAILED)
-	{
-		return NULL;
-	}
+		return error_msg("[Warning]: mmap failed\n"), NULL;
 
 	page->size = page_size;
 	page->next = next;
@@ -88,28 +94,35 @@ static void*	alloc_in_zone(t_page** zone, size_t size, size_t zoneSize)
 
 	*zone = allocate_new_page(*zone, zoneSize);
 
+	if (!*zone)
+		return NULL;
+
 	return alloc_in_page(*zone, size);
 }
 
-static size_t	align16(size_t size)
+static t_page**	zones[] =
 {
-	return (size + 15) & ~15;
-}
+	&g_heap.tiny,
+	&g_heap.small,
+	&g_heap.large
+};
+
+static pthread_mutex_t*	mutexes[] =
+{
+	&g_heap.tiny_mutex,
+	&g_heap.small_mutex,
+	&g_heap.large_mutex
+};
 
 void*	malloc(size_t size)
 {
-	if (size <= 0 || size > __INT_MAX__)
+	if (size == 0 || size > __INT_MAX__)
 		return NULL;
-
-	static t_page**	zones[] = {
-		&g_heap.tiny,
-		&g_heap.small,
-		&g_heap.large
-	};
 
 	size = align16(sizeof(t_block) + size);
 
-	size_t	sizes[] = {
+	const size_t	sizes[] =
+	{
 		TINY_ZONE_SIZE,
 		SMALL_ZONE_SIZE,
 		LARGE_ZONE_SIZE(size)
@@ -117,6 +130,11 @@ void*	malloc(size_t size)
 
 	int	index = (size > TINY) + (size > SMALL);
 
-	return alloc_in_zone(zones[index], size, sizes[index]);
-}
+	pthread_mutex_lock(mutexes[index]);
 
+	void*	ptr = alloc_in_zone(zones[index], size, sizes[index]);
+
+	pthread_mutex_unlock(mutexes[index]);
+
+	return ptr;
+}

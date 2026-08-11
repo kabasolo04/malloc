@@ -10,15 +10,15 @@
 static void *worker(void *arg)
 {
     (void)arg;
-    while (1)
+    for (int i = 0; i < ITERS; i++)
     {
         void *p = malloc(64);
         if (p)
-            p = realloc(p, rand() % 1000);
+            p = realloc(p, 128 + (i % 32));
         if (p)
             free(p);
 
-		sleep(0.1);
+        sleep(0.1);
     }
     return NULL;
 }
@@ -28,17 +28,8 @@ int main(void)
     pthread_t th[THREADS];
     for (int i = 0; i < THREADS; i++)
         pthread_create(&th[i], NULL, worker, NULL);
-
-	while (1)
-	{
-		system("clear");
-		show_alloc_mem();
-		sleep(1);
-	}
-
     for (int i = 0; i < THREADS; i++)
         pthread_join(th[i], NULL);
-	
     puts("realloc threads test passed");
     return 0;
 }

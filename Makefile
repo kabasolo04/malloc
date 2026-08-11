@@ -1,5 +1,7 @@
 CC = cc
-CFLAGS = -Wall -Wextra -Werror -fPIC -Iincludes -Ilibft
+PRINT_ALL_MEM ?= 0
+CFLAGS = -Wall -Wextra -Werror -fPIC -Iincludes -Ilibft \
+			-DPRINT_ALL_MEM=$(PRINT_ALL_MEM)
 LDFLAGS = -shared
 
 LIBFT_DIR = libft
@@ -33,7 +35,13 @@ $(LINKNAME): $(LIBNAME)
 	ln -sf $(LIBNAME) $(LINKNAME)
 
 test: $(LIBNAME) test.c
-	$(CC) test.c -L. -Wl,-rpath,. -lft_malloc -o $(TESTNAME)
+	$(CC) test.c -pthread -L. -Wl,-rpath,. -lft_malloc -o $(TESTNAME)
+
+show+:
+	$(MAKE) re PRINT_ALL_MEM=1
+
+show-:
+	$(MAKE) re PRINT_ALL_MEM=0
 
 clean:
 	rm -rf $(OBJDIR)
@@ -45,4 +53,4 @@ fclean: clean
 
 re: fclean all test
 
-.PHONY: all clean fclean re test
+.PHONY: all clean fclean re test show+ show-

@@ -44,5 +44,8 @@ void	ft_putnbr_fd(int n, int fd);
 
 int		ft_printf(char const *s, ...);
 int		ft_strcmp(const char *s1, const char *s2);
+int		ft_min(int n1, int n2);
+int		ft_max(int n1, int n2);
+int		ft_abs(int n);
 
 #endif //LIBFT.H

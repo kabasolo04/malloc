@@ -1,6 +1,6 @@
 #include "malloc.h"
 
-void	free_block(t_search* data) // Defragmentation happens here
+static void	free_block(t_search* data) // Defragmentation happens here
 {
 	t_block*	prev;
 	t_block*	block;
@@ -24,7 +24,7 @@ void	free_block(t_search* data) // Defragmentation happens here
 		prev->size += block->size;
 }
 
-void	free_page(t_search* data)
+static void	free_page(t_search* data)
 {
 	t_page*		prev;
 	t_page*		page;
@@ -47,11 +47,15 @@ void	free_page(t_search* data)
 
 void	free(void *ptr)
 {
-	t_search data = {0};
+	t_search			data = {0};
+	pthread_mutex_t*	mutex;
 
-	if (!search_block(&data, ptr))
-		return error_msg("[Warning]: Memory address not found\n");
+	mutex = search_block(&data, ptr);
+
+	if (!mutex) return ;
 
 	free_block(&data);
 	free_page(&data);
+
+	pthread_mutex_unlock(mutex);
 }

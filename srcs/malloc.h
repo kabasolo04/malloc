@@ -5,6 +5,7 @@
 # include <unistd.h>
 # include <stddef.h>
 #include "libft.h"
+#include <pthread.h>
 
 # define TINY 128
 # define SMALL 1024
@@ -33,6 +34,10 @@ typedef struct s_heap
 	t_page	*small;
 	t_page	*large;
 
+	pthread_mutex_t	tiny_mutex;
+	pthread_mutex_t	small_mutex;
+	pthread_mutex_t	large_mutex;
+
 } t_heap;
 
 typedef struct s_search
@@ -50,9 +55,9 @@ typedef struct s_search
 extern t_heap g_heap;
 
 void	show_alloc_mem();
-int		search_block(t_search* data, void *ptr);
 void	error_msg(char* msg);
-void	free_block(t_search* data);
-void	free_page(t_search* data);
+size_t	align16(size_t size);
+
+pthread_mutex_t*	search_block(t_search* data, void *ptr);
 
 #endif

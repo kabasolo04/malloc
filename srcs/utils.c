@@ -52,32 +52,49 @@ static int	search_in_zone_for_page(t_search* data, void *ptr)
 	return 0;
 }
 
-int	search_block(t_search* data, void *ptr)
+t_page**	zones[] =
 {
-	if (!ptr) return 0;
+	&g_heap.tiny,
+	&g_heap.small,
+	&g_heap.large,
+	NULL
+};
 
-	t_page**	zones[] = {
-		&g_heap.tiny,
-		&g_heap.small,
-		&g_heap.large,
-		NULL
-	};
+static pthread_mutex_t*	mutexes[] =
+{
+	&g_heap.tiny_mutex,
+	&g_heap.small_mutex,
+	&g_heap.large_mutex,
+	NULL
+};
+
+pthread_mutex_t*	search_block(t_search* data, void *ptr)	// Fills the data struct and returns a locked mutex of the zone the ptr belongs to, esle returns NULL
+{
+	if (!ptr) return NULL;
 
 	for (size_t i = 0; zones[i]; i++)
 	{
+		pthread_mutex_lock(mutexes[i]);
+
 		data->zone = zones[i];
 
 		if (search_in_zone_for_page(data, ptr))
-			return 1;
+			return mutexes[i];
+
+		pthread_mutex_unlock(mutexes[i]);
 	}
 	
-	return 0;
+	return error_msg("[Warning]: Memory address not found\n"), NULL;
 }
 
 void	error_msg(char* msg)
 {
-	if (!msg)
-		return;
+	if (!msg) return;
 
 	write(2, msg, ft_strlen(msg));
+}
+
+size_t	align16(size_t size) // It simply makes the number bigger so its divisible by 16 unless it already is
+{
+	return (size + 15) & ~15;
 }
