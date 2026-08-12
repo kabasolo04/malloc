@@ -4,44 +4,34 @@
 
 static char zone_change_required(size_t old_size, size_t new_size)
 {
-	size_t old_payload;
-	size_t new_payload;
-	char old_zone;
-	char new_zone;
+	char	old_zone;
+	char	new_zone;
 
-	old_payload = old_size - sizeof(t_block);
-	new_payload = new_size - sizeof(t_block);
+	old_size -= sizeof(t_block);
 
-	old_zone = (old_payload > TINY) + (old_payload > SMALL);
-	new_zone = (new_payload > TINY) + (new_payload > SMALL);
+	old_zone = (old_size > TINY) + (old_size > SMALL);
+	new_zone = (new_size > TINY) + (new_size > SMALL);
 
 	return (old_zone != new_zone || old_zone == 2 || new_zone == 2);
 }
 
 static char expand(t_search *data, size_t size)
 {
-	t_block *block;
-	t_block *next_block;
-	t_block *new_block;
-	size_t growth;
-	size_t remainder;
-	char *end;
+	t_block*	block;
+	t_block*	next_block;
+	t_block*	new_block;
+	size_t		growth;
+	size_t		remainder;
+	char*		end;
 
-	block = data->block;
+	block		= data->block;
+	next_block	= (t_block *)((char *)block + block->size);
+	end			= (char *)data->page + data->page->size;
+	growth		= size - block->size;
 
-	end = (char *)data->page + data->page->size;
-
-	if ((char *)block + block->size >= end) return (0);
-
-	next_block = (t_block *)((char *)block + block->size);
-
-	if ((char *)next_block + sizeof(t_block) > end) return (0);
-
-	if (!next_block->free) return (0);
-
-	growth = size - block->size;
-
-	if (next_block->size < growth) return (0);
+	if ((char *)next_block + sizeof(t_block) > end)	return (0);
+	if (!next_block->free)							return (0);
+	if (next_block->size < growth)					return (0);
 
 	remainder = next_block->size - growth;
 
@@ -52,41 +42,45 @@ static char expand(t_search *data, size_t size)
 	}
 
 	new_block = (t_block *)((char *)block + size);
-
-	new_block->size = remainder; new_block->free = 1;
+	new_block->size = remainder;
+	new_block->free = 1;
 
 	block->size = size;
-
+	
 	return (1);
 }
 
 static void shrink(t_search *data, size_t size)
 {
-	t_block *block;
-	t_block *next_block;
-	t_block *new_block;
-	size_t remainder;
-	char *end;
+	t_block*	block;
+	t_block*	next_block;
+	t_block*	new_block;
+	size_t		remainder;
+	char*		end;
 	
-	block = data->block;
-	end = (char *)data->page + data->page->size;
-	remainder = block->size - size;
+	block		= data->block;
+	next_block	= (t_block *)((char *)block + block->size);
+	new_block	= (t_block *)((char *)block + size);
+	end			= (char *)data->page + data->page->size;
+	remainder	= block->size - size;
 	
 	if (remainder < MIN_BLOCK_SIZE) return;
-	new_block = (t_block *)((char *)block + size);
-	new_block->size = remainder; new_block->free = 1;
+
+	new_block->size = remainder;
+	new_block->free = 1;
+	
 	block->size = size;
-	next_block = (t_block *)((char *)new_block + new_block->size);
-	if ((char *)next_block + sizeof(t_block) <= end && next_block->free) 
+
+	if ((char *)next_block + sizeof(t_block) <= end && next_block->free)	// Defragmentation
 		new_block->size += next_block->size;
 }
 
 static char resize(t_search *data, size_t size)
 {
-	size = align16(size + sizeof(t_block));
-
 	if (zone_change_required(data->block->size, size))
 		return (0);
+
+	size = align16(size + sizeof(t_block));
 
 	if (data->block->size < size)
 		return (expand(data, size));
@@ -117,13 +111,11 @@ void*	realloc(void *ptr, size_t size)
 	char				resize_worked;
 	size_t				old_size;
 
-	if (!ptr) return malloc(size);
+	if (!ptr)				return malloc(size);
+	if (size == 0)			return free(ptr), NULL;
+	if (size > __INT_MAX__)	return NULL;
 
-	if (size == 0) return free(ptr), NULL;
-
-	if (size > __INT_MAX__) return NULL;
-
-	mutex = search_block(&data, ptr);
+	mutex = search_block(&data, ptr);	// Mutex lock inside search_block!
 
 	if (!mutex) return NULL;
 

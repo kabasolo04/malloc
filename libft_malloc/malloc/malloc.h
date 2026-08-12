@@ -56,6 +56,7 @@ extern t_heap g_heap;
 
 void	show_alloc_mem();
 void	error_msg(char* msg);
+size_t	align16(size_t size);
 
 pthread_mutex_t*	search_block(t_search* data, void *ptr);
 
